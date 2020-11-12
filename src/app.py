@@ -4,8 +4,9 @@ from flask import Flask, render_template, request, redirect, url_for, abort, \
     send_from_directory
 from werkzeug.utils import secure_filename
 
-import string
+import string 
 import pickle
+from sklearn.externals import joblib
 import requests
 from bs4 import BeautifulSoup
 from wordcloud import WordCloud
@@ -17,6 +18,8 @@ import seaborn as sns
 import nltk
 from nltk import word_tokenize
 from nltk.stem import PorterStemmer
+nltk.download('stopwords')
+nltk.download('punkt')
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 nltk.download('words')
@@ -24,30 +27,31 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.ensemble import RandomForestRegressor
 from sklearn import metrics
 import sqlite3
-#from sklearn.externals import joblib
-import joblib
+from sklearn.externals import joblib
 
-def clean_script(script, stemmer = PorterStemmer(),
+def clean_script(script, stemmer = PorterStemmer(), 
                   stop_words = set(stopwords.words('english')), engwords = set(nltk.corpus.words.words())):
-
+    
     #Converts to Lower Case and splits up the words
     words = word_tokenize(script.lower())
-
+    
     filtered_words = []
-
+    
     for word in words:
         # Removes the stop words and punctuation
         if word not in stop_words and word.isalpha() and word in engwords:
             filtered_words.append(stemmer.stem(word))
-
-
+    
+    
     return filtered_words
 
 vocabulary_to_load = pickle.load(open('Vocab_rating.txt', 'rb'))
 vectorizer = CountVectorizer(analyzer = clean_script, vocabulary=vocabulary_to_load)
 vectorizer._validate_vocabulary()
+
 
 #The model for rating
 NB_rating_model = open('NB_movie_script_rating.pkl','rb')
@@ -56,6 +60,10 @@ clf_rating = joblib.load(NB_rating_model)
 #The model for genre
 NB_genre_model = open('NB_movie_script_gen.pkl', 'rb')
 clf_genre = joblib.load(NB_genre_model)
+
+#The model for revenue
+Revenue_model = open('NB_movie_script_revenue_predict.pkl', 'rb')
+clf_rev = joblib.load(Revenue_model)
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 1024 * 1024
@@ -78,9 +86,16 @@ def predict_genre(script):
     gen_prediction = clf_genre.predict(vect_gen)
     return gen_prediction
 
-@app.route('/', methods=['POST'])
+def predict_profit(budget):
+    data_rev = np.array([budget])
+    data_revenue = data_rev.reshape(-1, 1)
+    profit = clf_rev.predict(data_revenue)
+    return profit
+
+@app.route('/results', methods=['POST'])
 def upload_files():
     uploaded_file = request.files['file']
+    budget = request.form['budget']
     filename = secure_filename(uploaded_file.filename)
     if filename != '':
         file_ext = os.path.splitext(filename)[1]
@@ -91,11 +106,12 @@ def upload_files():
     text = file.read()
     review_prediction = predict_review(text)
     genre_prediction = predict_genre(text)
-    return render_template('result.html',revprediction = review_prediction, genprediction = genre_prediction)
+    profit_pred = predict_profit(budget)
+    return render_template('result.html',revprediction = review_prediction, genprediction = genre_prediction, profit = round(profit_pred[0]))
 
-@app.route('/uploads/<filename>')
-def upload(filename):
-    return send_from_directory(app.config['UPLOAD_PATH'], filename)
+# @app.route('/uploads/<filename>')
+# def upload(filename):
+#     return send_from_directory(app.config['UPLOAD_PATH'], filename)
 
 if __name__ == '__main__':
     app.run(debug=True)
