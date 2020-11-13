@@ -6,7 +6,7 @@ from werkzeug.utils import secure_filename
 
 import string 
 import pickle
-from sklearn.externals import joblib
+#from sklearn.externals import joblib
 import requests
 from bs4 import BeautifulSoup
 from wordcloud import WordCloud
@@ -30,8 +30,8 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.ensemble import RandomForestRegressor
 from sklearn import metrics
 import sqlite3
-from sklearn.externals import joblib
-
+#from sklearn.externals import joblib
+import joblib
 def clean_script(script, stemmer = PorterStemmer(), 
                   stop_words = set(stopwords.words('english')), engwords = set(nltk.corpus.words.words())):
     
