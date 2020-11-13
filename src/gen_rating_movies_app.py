@@ -32,6 +32,7 @@ from sklearn import metrics
 import sqlite3
 #from sklearn.externals import joblib
 import joblib
+
 def clean_script(script, stemmer = PorterStemmer(), 
                   stop_words = set(stopwords.words('english')), engwords = set(nltk.corpus.words.words())):
     
@@ -73,6 +74,12 @@ app.config['UPLOAD_PATH'] = 'uploads'
 @app.route('/')
 def index():
     return render_template('index.html')
+
+
+@app.route('/')
+def hello():
+    return "Hello, world!"
+
 
 def predict_review(script):
     data = [script]
