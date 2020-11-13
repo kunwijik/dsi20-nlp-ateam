@@ -1,12 +1,13 @@
 import imghdr
 import os
+import jinja2
 from flask import Flask, render_template, request, redirect, url_for, abort, \
     send_from_directory
 from werkzeug.utils import secure_filename
 
 import string 
 import pickle
-#from sklearn.externals import joblib
+from sklearn.externals import joblib
 import requests
 from bs4 import BeautifulSoup
 from wordcloud import WordCloud
@@ -30,8 +31,20 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.ensemble import RandomForestRegressor
 from sklearn import metrics
 import sqlite3
-#from sklearn.externals import joblib
-import joblib
+from sklearn.externals import joblib
+import yagmail
+
+
+# Define Function to send an email
+yag = yagmail.SMTP(user='ateamdsiafrica@gmail.com', password='nadeemoozeer')
+def send_mail(email_address,email_body):
+    print(email_address)
+    print(email_body)
+
+    yag.send(to=email_address,\
+             subject='Script Analyser Results',\
+             contents=email_body)
+
 
 def clean_script(script, stemmer = PorterStemmer(), 
                   stop_words = set(stopwords.words('english')), engwords = set(nltk.corpus.words.words())):
@@ -75,12 +88,6 @@ app.config['UPLOAD_PATH'] = 'uploads'
 def index():
     return render_template('index.html')
 
-
-@app.route('/')
-def hello():
-    return "Hello, world!"
-
-
 def predict_review(script):
     data = [script]
     vect = vectorizer.transform(data).toarray()
@@ -114,6 +121,16 @@ def upload_files():
     review_prediction = predict_review(text)
     genre_prediction = predict_genre(text)
     profit_pred = predict_profit(budget)
+    #email_body =  render_template("email.html",record = rows)   
+    template = jinja2.Template("""
+                               The script analysis tool has predicted that for script: {{ name }} 
+                                the predicted rating would be: {{ prediction_review }} stars
+                                with a revenue of $ {{prediction_revenue}} 
+                                and would fall into the{{predict_genre[0]}} genre.""")
+    email_body = template.render(name=filename,prediction_review=review_prediction[0], prediction_revenue =  round(profit_pred[0]), predict_genre = genre_prediction)
+    email = request.form['email']
+    send_mail(email_address=email,email_body=email_body)
+
     return render_template('result.html',revprediction = review_prediction, genprediction = genre_prediction, profit = round(profit_pred[0]))
 
 # @app.route('/uploads/<filename>')
